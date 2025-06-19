@@ -23,7 +23,7 @@ if [ -d "venv" ]; then
         echo "📦 Using existing virtual environment..."
         source venv/bin/activate
         echo "✅ Virtual environment activated!"
-        echo "🎯 You can now run: python hello_pytorch.py or python hello_pytorch_gpu.py"
+        echo "🎯 You can now run: python hello_pytorch_gpu.py"
         exit 0
     fi
 fi
@@ -79,7 +79,6 @@ echo "🎉 Setup completed successfully!"
 echo ""
 echo "📋 Next steps:"
 echo "   1. Activate the environment: source venv/bin/activate"
-echo "   2. Run CPU version: python hello_pytorch.py"
-echo "   3. Run GPU version: python hello_pytorch_gpu.py"
+echo "   2. Run the application: python hello_pytorch_gpu.py"
 echo ""
 echo "🔧 To deactivate the environment: deactivate" 
