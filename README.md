@@ -1,34 +1,43 @@
-# PyTorch Hello World
+# PyTorch Hello World & DDP Training
 
-A simple PyTorch application that demonstrates basic neural network functionality with automatic GPU acceleration. This example creates a simple neural network that learns to fit a linear relationship between input and output data.
+A comprehensive PyTorch application that demonstrates both basic neural network functionality and distributed training with PyTorch's DistributedDataParallel (DDP). This repository includes simple hello world examples and advanced multi-node GPU training capabilities.
 
 ## 🚀 Features
 
-- **Automatic GPU Detection**: Automatically uses GPU if available, falls back to CPU
-- **Simple Neural Network**: Demonstrates basic PyTorch concepts
-- **Visualization**: Creates plots showing training results
-- **Easy Setup**: Automated setup script included
+- **Single GPU Training**: Basic PyTorch hello world with automatic GPU detection
+- **Multi-GPU Training**: Single-node distributed training across multiple GPUs
+- **Multi-Node Training**: Distributed training across multiple machines
+- **Automatic Setup**: Automated setup scripts for both single and multi-node environments
+- **Easy Launchers**: Simple launcher scripts for various training configurations
+- **Visualization**: Creates plots showing training results and performance metrics
 
 ## 📋 Requirements
 
 - Python 3.8+
-- PyTorch 2.2.0+ (with CUDA support if using GPU)
+- PyTorch 2.2.0+ (with CUDA support for GPU training)
 - NumPy 1.24.0+
 - Matplotlib 3.7.0+
+- SSH key-based authentication (for multi-node training)
+- NVIDIA GPUs with CUDA support
 
 ## 🛠️ Installation
 
-### Option 1: Automated Setup (Recommended)
+### Quick Setup
+
 ```bash
 # Clone this repository
 git clone <your-repo-url>
 cd pytorch_app
 
-# Run the automated setup script
-./setup.sh
+# For single-node training
+./setup_ddp.sh
+
+# For multi-node training
+./setup_ddp.sh --multi-node
 ```
 
-### Option 2: Manual Setup
+### Manual Setup
+
 ```bash
 # Create virtual environment
 python3 -m venv venv
@@ -44,96 +53,282 @@ pip install -r requirements.txt
 
 ## 🎯 Usage
 
-### Quick Start
+### 1. Single GPU Training (Basic Hello World)
+
 ```bash
-# Activate the environment (if not already activated)
+# Activate the environment
 source venv/bin/activate
 
-# Run the PyTorch Hello World application
+# Run the basic PyTorch hello world
 python hello_pytorch_gpu.py
 ```
 
-### What the Script Does
+### 2. Single-Node Multi-GPU Training
 
-1. **Data Generation**: Creates synthetic linear data with noise (y = 2x + 1 + noise)
-2. **Model Definition**: Creates a simple neural network with one linear layer
-3. **Training**: Trains the model for 100 epochs using SGD optimizer
-4. **Visualization**: Saves a plot showing the original data and fitted line
-5. **Results**: Displays learned model parameters
+```bash
+# Using the launcher (recommended)
+python launch_ddp_training.py --mode single-node --gpus 2
 
-### Expected Output
-```
-Using device: cuda  # or cpu if no GPU available
-Training the model on GPU...
-Epoch [10/100], Loss: 0.2312
-Epoch [20/100], Loss: 0.2254
-...
-Epoch [100/100], Loss: 0.2141
-
-Model parameters:
-linear.weight: 1.9987
-linear.bias: 0.9681
-
-Training completed on cuda! Check 'pytorch_hello_world_gpu.png' for the visualization.
+# Or using torchrun directly
+torchrun --nproc_per_node=2 hello_pytorch_ddp.py
 ```
 
-## 🔧 Key PyTorch Concepts Demonstrated
+### 3. Multi-Node Training (gpu-node & gpu-node1)
 
-- **Tensors**: Creating and manipulating PyTorch tensors
-- **Neural Networks**: Defining models using `nn.Module`
-- **Device Management**: Moving data between CPU and GPU
-- **Loss Functions**: Using MSE loss for regression
-- **Optimizers**: SGD optimization
-- **Training Loops**: Forward pass, backward pass, and parameter updates
-- **Model Evaluation**: Using `torch.no_grad()` for inference
+**IMPORTANT**: For multi-node DDP, you need **exactly ONE torchrun process per node**.
 
-## 📊 Understanding the Results
+#### Method 1: Using the automated launcher (if SSH is properly configured)
+```bash
+python launch_ddp_training.py --mode multi-node --master-node gpu-node1 --worker-nodes gpu-node
+```
 
-The model learns to approximate the function `y = 2x + 1` from noisy data:
-- **Expected weight**: 2.0 (slope)
-- **Expected bias**: 1.0 (y-intercept)
-- **Learned weight**: ~1.9987 (very close!)
-- **Learned bias**: ~0.9681 (close, considering noise)
+#### Method 2: Manual start (recommended for learning)
+Start the processes manually on each node:
 
-## 🖥️ GPU vs CPU Performance
+**On gpu-node1 (master node):**
+```bash
+cd /home/sanzad/git/pytorch_app
+source venv/bin/activate
+./start_multi_node.sh master
+```
 
-- **With GPU**: Faster training, better convergence
-- **Without GPU**: Automatic fallback to CPU, still functional
-- **Performance**: GPU typically 10-100x faster for neural networks
+**On gpu-node (worker node):**
+```bash
+cd /home/sanzad/git/pytorch_app
+source venv/bin/activate
+./start_multi_node.sh worker
+```
 
-## 📁 Project Structure
+#### Method 3: Direct torchrun commands
+**On gpu-node1 (master, rank 0):**
+```bash
+source venv/bin/activate
+torchrun --nproc_per_node=1 --nnodes=2 --node_rank=0 --master_addr=192.168.1.144 --master_port=29500 hello_pytorch_ddp.py --epochs=10
+```
+
+**On gpu-node (worker, rank 1):**
+```bash
+source venv/bin/activate
+torchrun --nproc_per_node=1 --nnodes=2 --node_rank=1 --master_addr=192.168.1.144 --master_port=29500 hello_pytorch_ddp.py --epochs=10
+```
+
+### 4. Advanced Configuration
+
+```bash
+# Custom training parameters
+python launch_ddp_training.py \
+    --mode multi-node \
+    --master-node gpu-node \
+    --worker-nodes gpu-node1 \
+    --gpus-per-node 2 \
+    --epochs 100 \
+    --batch-size 64 \
+    --learning-rate 0.001 \
+    --data-size 5000
+```
+
+## 🏗️ Project Structure
 
 ```
 pytorch_app/
-├── hello_pytorch_gpu.py    # Main PyTorch application
-├── requirements.txt        # Python dependencies
-├── setup.sh               # Automated setup script
-├── README.md              # This file
-└── .gitignore             # Git ignore rules
+├── hello_pytorch_gpu.py        # Basic single-GPU hello world
+├── hello_pytorch_ddp.py        # DDP training script
+├── launch_ddp_training.py      # DDP launcher script
+├── setup_ddp.sh               # DDP setup script
+├── hosts.txt                  # GPU nodes configuration
+├── requirements.txt           # Python dependencies
+├── setup.sh                   # Basic setup script
+├── README.md                  # This file
+└── .gitignore                 # Git ignore rules
+```
+
+## 🔧 DDP Training Details
+
+### What the DDP Script Does
+
+1. **Distributed Setup**: Initializes process groups across all nodes
+2. **Data Distribution**: Splits data across all processes using DistributedSampler
+3. **Model Synchronization**: Keeps model parameters synchronized across all GPUs
+4. **Gradient Synchronization**: Automatically synchronizes gradients during backpropagation
+5. **Visualization**: Saves training progress plots (only on rank 0)
+
+### Key DDP Concepts Demonstrated
+
+- **Process Groups**: Setting up communication between distributed processes
+- **DistributedDataParallel**: Wrapping models for distributed training
+- **DistributedSampler**: Ensuring data is properly distributed across processes
+- **Rank Management**: Handling different process ranks (master vs worker)
+- **Gradient Synchronization**: Automatic gradient averaging across processes
+
+### ⚠️ Important: Process Count Rules
+
+**For multi-node DDP training, you need EXACTLY:**
+- **1 torchrun process per node** (not per GPU!)
+- Each torchrun process manages all GPUs on that node via `--nproc_per_node`
+
+**Example with 2 nodes, 1 GPU each:**
+- gpu-node1: 1 torchrun process (rank 0, master)
+- gpu-node: 1 torchrun process (rank 1, worker)
+- **Total: 2 torchrun processes**
+
+**Example with 2 nodes, 2 GPUs each:**
+- gpu-node1: 1 torchrun process managing 2 GPUs (rank 0, master)
+- gpu-node: 1 torchrun process managing 2 GPUs (rank 1, worker)
+- **Total: 2 torchrun processes, 4 GPU workers**
+
+**Common mistakes:**
+- ❌ Starting multiple torchrun processes on the same node
+- ❌ Using `--nproc_per_node` = number of nodes instead of GPUs per node
+- ❌ Not coordinating the start time between nodes
+
+## 🌐 Multi-Node Setup Requirements
+
+### SSH Configuration
+
+1. **Set up SSH keys** between all nodes:
+   ```bash
+   # Generate SSH key (if not exists)
+   ssh-keygen -t rsa -b 4096
+   
+   # Copy public key to all nodes
+   ssh-copy-id user@gpu-node
+   ssh-copy-id user@gpu-node1
+   
+   # Test SSH connection
+   ssh gpu-node 'echo "SSH works"'
+   ssh gpu-node1 'echo "SSH works"'
+   ```
+
+2. **Configure hostnames** in `/etc/hosts` or DNS:
+   ```
+   192.168.1.100  gpu-node
+   192.168.1.101  gpu-node1
+   ```
+
+### Firewall Configuration
+
+Ensure port 29500 (default) is open for communication:
+```bash
+# On Ubuntu/Debian
+sudo ufw allow 29500
+
+# On CentOS/RHEL
+sudo firewall-cmd --add-port=29500/tcp --permanent
+sudo firewall-cmd --reload
+```
+
+### Environment Synchronization
+
+- Install the same PyTorch version on all nodes
+- Ensure CUDA versions are compatible
+- Sync the training code to all nodes
+
+## 📊 Expected Performance
+
+### Single Node vs Multi-Node
+
+- **Single GPU**: Baseline performance
+- **Multi-GPU (Same Node)**: ~1.8x speedup (depends on GPU communication)
+- **Multi-Node**: ~1.5x speedup per additional node (depends on network bandwidth)
+
+### Training Output Example
+
+```
+🚀 Starting DDP training with 2 processes
+📊 Training parameters:
+   - Epochs: 50
+   - Batch size per GPU: 32
+   - Learning rate: 0.01
+   - Data size: 2000
+   - Hidden size: 64
+   - World size: 2
+
+[Rank 0] Process initialized on gpu-node, local_rank: 0, world_size: 2
+[Rank 1] Process initialized on gpu-node1, local_rank: 0, world_size: 2
+
+🎯 Model architecture:
+   - Input size: 1
+   - Hidden size: 64
+   - Output size: 1
+   - Total parameters: 4481
+
+🔄 Starting training on 2 GPUs...
+Epoch [1/50] - Train Loss: 0.892156, Eval Loss: 0.887432
+Epoch [2/50] - Train Loss: 0.456789, Eval Loss: 0.445123
+...
+✅ Training completed in 15.67 seconds
+⚡ Average time per epoch: 0.31 seconds
 ```
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **CUDA not available**: The script will automatically use CPU
-2. **Import errors**: Make sure virtual environment is activated
-3. **Permission denied**: Run `chmod +x setup.sh` to make setup script executable
+1. **SSH Connection Failed**:
+   ```bash
+   # Check SSH key authentication
+   ssh -v gpu-node1
+   
+   # Verify SSH agent
+   ssh-add -l
+   ```
 
-### Getting Help
+2. **CUDA Not Available**:
+   ```bash
+   # Check CUDA installation
+   nvidia-smi
+   
+   # Verify PyTorch CUDA
+   python -c "import torch; print(torch.cuda.is_available())"
+   ```
 
-- Check PyTorch installation: `python -c "import torch; print(torch.__version__)"`
-- Check CUDA availability: `python -c "import torch; print(torch.cuda.is_available())"`
+3. **Port Already in Use**:
+   ```bash
+   # Use different port
+   python launch_ddp_training.py --mode multi-node --port 29501
+   ```
 
-## 📚 Next Steps
+4. **Network Issues**:
+   ```bash
+   # Test network connectivity
+   ping gpu-node1
+   
+   # Check firewall
+   telnet gpu-node1 29500
+   ```
 
-After running this example, you can:
-- Modify the neural network architecture
-- Try different optimizers (Adam, RMSprop)
-- Experiment with different loss functions
-- Add more layers to the network
-- Try different datasets
+### Debug Mode
+
+Run with debug information:
+```bash
+export TORCH_DISTRIBUTED_DEBUG=INFO
+python launch_ddp_training.py --mode multi-node
+```
+
+## 📚 Learning Resources
+
+- **PyTorch DDP Tutorial**: [Official PyTorch DDP Guide](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html)
+- **Distributed Training**: [PyTorch Distributed Overview](https://pytorch.org/tutorials/beginner/dist_overview.html)
+- **torchrun**: [PyTorch Elastic Documentation](https://pytorch.org/docs/stable/elastic/run.html)
+
+## 🚀 Next Steps
+
+After running these examples, you can:
+
+1. **Scale to More Nodes**: Add more GPU nodes to `hosts.txt`
+2. **Custom Models**: Replace SimpleNet with your own models
+3. **Real Datasets**: Use actual datasets instead of synthetic data
+4. **Advanced Features**: Add checkpointing, logging, and monitoring
+5. **Performance Optimization**: Experiment with different batch sizes and learning rates
 
 ## 🤝 Contributing
 
-Feel free to submit issues and enhancement requests! 
+Feel free to submit issues and enhancement requests! Contributions are welcome for:
+- Additional distributed training examples
+- Performance optimizations
+- Multi-node setup automation
+- Advanced DDP features
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details. 

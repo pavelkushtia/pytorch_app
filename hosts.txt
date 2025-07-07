@@ -1,0 +1,29 @@
+# GPU Nodes Configuration for DDP Training
+# This file contains the hostnames of available GPU nodes for distributed training.
+# 
+# Format: one hostname per line
+# Lines starting with # are comments and will be ignored
+#
+# Usage:
+#   - Make sure SSH key-based authentication is set up between all nodes
+#   - Ensure the same PyTorch environment is available on all nodes
+#   - The first node in the list is typically used as the master node
+#
+# Example usage with launcher:
+#   python launch_ddp_training.py --mode multi-node --master-node gpu-node --worker-nodes gpu-node1
+
+# Master node (typically the first node)
+gpu-node
+
+# Worker nodes
+gpu-node1
+
+# Additional nodes can be added here
+# gpu-node2
+# gpu-node3
+
+# Configuration notes:
+# - Each node should have the same PyTorch environment
+# - SSH key-based authentication should be configured
+# - Firewall should allow communication on port 29500 (default) or configured port
+# - All nodes should have access to the same training data (if using external data) 
